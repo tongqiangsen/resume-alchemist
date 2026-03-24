@@ -276,12 +276,18 @@ serve(async (req) => {
     }
 
     const { type, content, industry, jd, style } = await req.json() as RequestBody;
+    // 获取 AI 配置（优先使用 OpenAI，其次硅基流动）
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const SILICONFLOW_API_KEY = Deno.env.get('SILICONFLOW_API_KEY');
-    const SILICONFLOW_MODEL = Deno.env.get('SILICONFLOW_MODEL') || 'Qwen/Qwen3-8B';
-    
-    if (!SILICONFLOW_API_KEY) {
-      throw new Error('SILICONFLOW_API_KEY is not configured');
+    const model = Deno.env.get('OPENAI_MODEL') || Deno.env.get('SILICONFLOW_MODEL') || 'gpt-4o-mini';
+
+    if (!OPENAI_API_KEY && !SILICONFLOW_API_KEY) {
+      throw new Error('请配置 OPENAI_API_KEY 或 SILICONFLOW_API_KEY');
     }
+
+    // 使用硅基流动 API（兼容 OpenAI 协议，可用 gpt 模型）
+    const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
+    const apiKey = (OPENAI_API_KEY || SILICONFLOW_API_KEY)!;
 
     const config = getConfig(industry);
     const dimensions = config.dimensions;
@@ -381,15 +387,15 @@ ${styleInstruction}
       userPrompt = `职位描述：\n${jd}\n\n简历内容：\n${content}`;
     }
 
-    // 使用硅基流动 API
-    const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+    // 使用 AI API
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SILICONFLOW_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: SILICONFLOW_MODEL,
+        model: model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
