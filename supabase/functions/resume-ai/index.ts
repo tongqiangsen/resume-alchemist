@@ -276,18 +276,23 @@ serve(async (req) => {
     }
 
     const { type, content, industry, jd, style } = await req.json() as RequestBody;
-    // 获取 AI 配置（优先使用 OpenAI，其次硅基流动）
+    // 获取 AI 配置（支持自定义 API）
+    const CUSTOM_API_KEY = Deno.env.get('CUSTOM_API_KEY');
+    const CUSTOM_API_URL = Deno.env.get('CUSTOM_API_URL') || 'https://api.openai.com/v1/chat/completions';
+    const CUSTOM_MODEL = Deno.env.get('CUSTOM_MODEL') || 'gpt-4o-mini';
+
+    // 兼容旧配置
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const SILICONFLOW_API_KEY = Deno.env.get('SILICONFLOW_API_KEY');
-    const model = Deno.env.get('OPENAI_MODEL') || Deno.env.get('SILICONFLOW_MODEL') || 'gpt-4o-mini';
 
-    if (!OPENAI_API_KEY && !SILICONFLOW_API_KEY) {
-      throw new Error('请配置 OPENAI_API_KEY 或 SILICONFLOW_API_KEY');
+    if (!CUSTOM_API_KEY && !OPENAI_API_KEY && !SILICONFLOW_API_KEY) {
+      throw new Error('请配置 API 密钥');
     }
 
-    // 使用硅基流动 API（兼容 OpenAI 协议，可用 gpt 模型）
-    const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
-    const apiKey = (OPENAI_API_KEY || SILICONFLOW_API_KEY)!;
+    // 优先使用自定义 API，其次硅基流动
+    const apiUrl = CUSTOM_API_URL || 'https://api.siliconflow.cn/v1/chat/completions';
+    const apiKey = CUSTOM_API_KEY || OPENAI_API_KEY || SILICONFLOW_API_KEY;
+    const model = CUSTOM_MODEL;
 
     const config = getConfig(industry);
     const dimensions = config.dimensions;
